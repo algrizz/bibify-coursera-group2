@@ -35,7 +35,7 @@ GRANT ALL PRIVILEGES ON * . * TO 'root'@'localhost';
 GRANT ALL PRIVILEGES ON * . * TO 'readonly'@'localhost';
 
 Running:
-Just type: python3 index.php
+Just type: python3 index.py
 
 Do you want a snapshot of the DB?. A daily copy is generated and can be downloaded rigth here:
 http://coursera.acostasite.com:8000/DB/db_backup.sql
