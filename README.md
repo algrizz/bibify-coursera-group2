@@ -1,2 +1,50 @@
-# cybercoursera
-# cybercoursera
+What is this?
+A Secure Message Board project
+This is a very simple but secure message board system.
+
+What have you consider?
+
+- You can use any password. The only requiremens is that it should be at least 8 chars long. Spaces, phrases are accepted
+- Email of the user must be confirmed before using the system
+- It's mandatory to used two factor authentication
+- The password is hashed before inserting it in DB
+- A lot of SQL inyection test have been made
+
+How do I use it:
+Two options:
+a) Use it online at: http://coursera.acostasite.com:8000/
+
+b) Install using the following procedure:
+
+Requirements:
+- Flask  (apt-get install python-pip3; pip3 install Flask)
+- Python3
+- MySQL (apt-get install mysql-server)
+- MTA (Email Server) (in my case using Postfix in the same server) (apt-get install postfix)
+
+1) Clone repository
+git clone https://github.com/alejandroacostaalamo2/courseracybersecurity
+
+2) Create the DB
+cd courseracybersecurity
+mysql -u root -p -e "create database COURSERA"; 
+mysql -u root -p -h localhost COURSERA < schema.sql
+CREATE USER 'root'@'localhost' IDENTIFIED BY 'coursera'; (probably already have these users)
+CREATE USER 'readonly'@'localhost' IDENTIFIED BY 'coursera'; (probably already have these users)
+GRANT ALL PRIVILEGES ON * . * TO 'root'@'localhost';
+GRANT ALL PRIVILEGES ON * . * TO 'readonly'@'localhost';
+
+Running:
+Just type: python3 index.php
+
+Do you want a snapshot of the DB?. A daily copy is generated and can be downloaded rigth here:
+http://coursera.acostasite.com:8000/DB/db_backup.sql
+
+
+TODO
+- Second factor auth could be just a code, not a link. Maybe to have both options
+- Link for confirmation could be just a code, not a link. Maybe both options
+- Change password (however you can use: lost password)
+- Some mechanishm like garbage collector should exists for cleaning the DB (when user is not confirmed and so on)
+- Encrypt the full DB?
+- HTTPS Web site
