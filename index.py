@@ -16,6 +16,7 @@ from miforms import *  #In the file miforms.py are all the forms
 #It´s recommended to usea server with a webserver in the frontend. Running directly for simplicity
 PORT = 8000 #Port in which our APP will run
 SALT = 'COURsera.1234' #We are using the Salt technique. Variable used append to the password
+arraypwds = [] #In this list we have a dictionary wordlist for well known easy password
 
 app = Flask(__name__,static_url_path='', static_folder='web/static' ) #new object
 app.config['SECRET_KEY'] = '7d441f27d441f27567d441f2b6176a' #security to handle the form. Mandatory
@@ -27,6 +28,30 @@ def page_not_found(a=''):
 @app.errorhandler(Exception)
 def handle_error(e):
   return render_template('404.html')
+
+@app.route('/dbdump') #decorator
+def dbdump():
+    try:
+        hostname='localhost'
+        mysql_user='root'
+        mysql_pw='rc.353'
+        import subprocess, time
+#        timestamp = str(int(time.time()))
+        comando="mysqldump -h" + hostname + " -u" + mysql_user + " -p'" + mysql_pw + "' COURSERA 2> /dev/null"
+        #p = subprocess.check_output( [comando], shell=True, encoding='utf-8')
+        p = subprocess.getoutput(comando)
+        
+        # Wait for completion
+        p.communicate()
+        # Check for errors
+        if(p.returncode != 0):
+            raise
+        print("Backup done for", hostname)
+        #p=str(p.decode('utf-8'))
+        return '%s' % (p.split())
+    except:
+        print("Backup failed for", hostname)
+        return '%s' % (p)
 
 
 def BasicSanityCheckString(WHAT, VALUE):
@@ -401,7 +426,7 @@ def verify(CODE):
 @app.route('/verify2/<CODE>/') #decorator
 def verify2(CODE):
 
-    if (BasicSanityCheckString('CODE', CODE)) is not True:  #Let's check the CODE recevied in the URL
+    if (BasicSanityCheckString('CODE', CODE)) is not True:  #Let's check the CODE received in the URL
       flash ('Error: Code not found, cookie not found. Something wrong. Please try to logout and then login again')
       return render_template('404.html')
 
@@ -465,7 +490,7 @@ def registy():
         #if (ValidateFormRegistry(name, password, email)): #Even when there is some sort of validation make an extra validation
         #    flash('Error: There was an error processing your form. Please check the data. ')
 
-        if form.validate() and password==password2: #Flask internal validation and check if both password enter in the form match
+        if form.validate() and password==password2 and password not in arraypwds: #Flask internal validation and check if both password enter in the form match
             CODE=GENERATERANDOMSTRING() # CODE is used as validator for registration and password recovery
             SaveRegistrationInDB(name, password, email, CODE) #Only store in DB if passes validation
             sendemail(email, CODE, name)
@@ -501,5 +526,18 @@ def SaveRegistrationInDB(name, password, email, CODE):
 def coursera():
   return 'returning coursera Ojala sirva'
 
+def ReadDctFile():
+    #In this function we load from a txt file a wordlist with easy passwords
+    #that are not allow in our system
+    global arraypwds
+    with open("500-worst-passwords.txt", "r") as ins:
+      for line in ins:
+        line=line.rstrip()
+        if len(line) > 7 and len(line) < 21: #we are only interested in this len because short and big pwds are not accepted
+           arraypwds.append(line)
+
+
 if __name__ == '__main__':
+  ReadDctFile()
+  print (arraypwds)
   app.run(port=PORT,host='0.0.0.0') #Executing the server
