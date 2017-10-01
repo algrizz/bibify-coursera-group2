@@ -11,10 +11,19 @@ What have you consider?
 - A lot of SQL inyection test have been made
 
 How do I use it:
-Two options:
+Three options:
 a) Use it online at: http://coursera.acostasite.com:8000/
 
-b) Install using the following procedure:
+
+a) You can follow the below steps but if you want something easier use it online at:
+http://coursera.acostasite.com:8000/
+The username is ubuntu, password: reverse
+To get root access: sudo su (and retype reverse as password)
+
+If you want to go further, just download the VM at:
+http://stats.labs.lacnic.net/COURSERA/capstone-vm
+
+If you want to install:
 
 Requirements:
 - Flask  (apt-get install python-pip3; pip3 install Flask)
@@ -35,16 +44,14 @@ GRANT ALL PRIVILEGES ON * . * TO 'root'@'localhost';
 GRANT ALL PRIVILEGES ON * . * TO 'readonly'@'localhost';
 
 Running:
-Just type: python3 index.py
+Just type: python3 index.php
 
-Do you want a snapshot of the DB?. A daily copy is generated and can be downloaded rigth here:
-http://coursera.acostasite.com:8000/DB/db_backup.sql
-
+Open your browser in:
+http://127.0.0.1
 
 TODO
-- Second factor auth could be just a code, not a link. Maybe to have both options
+- Secondfactor auth could be just a code, not a link. Maybe to have both options
 - Link for confirmation could be just a code, not a link. Maybe both options
-- Change password (however you can use: lost password)
+- Change password (however you can say: lost password)
 - Some mechanishm like garbage collector should exists for cleaning the DB (when user is not confirmed and so on)
 - Encrypt the full DB?
-- HTTPS Web site
