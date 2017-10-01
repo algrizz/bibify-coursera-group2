@@ -28,6 +28,7 @@ def get_database_key(db_name):
     db.close()
     cipher = AES.new(db_master_key.encode('utf-8'), AES.MODE_EAX, nonce)
     db_key = cipher.decrypt_and_verify(ciphertext, tag)
+    print ("debug info: getting key for database: " + db_name + "\n")
     return db_key.decode()
     
 
@@ -46,6 +47,7 @@ def users_run_db_statement(query, args):
     users = cursor.execute(query, args).fetchall()
     db.commit()
     db.close()
+    print ("debug info: database request for:\n" + query + "\n")
     return users
 
 ## ----------------------- Insert Functions -------------------------------- ##

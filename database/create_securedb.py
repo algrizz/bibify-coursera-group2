@@ -78,19 +78,19 @@ user_db = sqlcipher.connect(db_users)
 print("users key: " + user_db_key.decode('utf-8')) # -- for debbuggin purposes only
 user_db.executescript("pragma key='" + user_db_key.decode('utf-8') + "'; pragma kdf_iter=64000;")
 user_db.executescript('create table unverified_user ' 
-                        + '(id int(11) primary key not null,' 
+                        + '(id integer primary key,' 
                         + ' email varchar(60) not null,' 
                         + ' code char(41) not null);')
                         
 user_db.executescript('create table users ' 
-                        + '(id int(11) primary key not null,' 
+                        + '(id integer primary key,' 
                         + ' fullname varchar(60) not null,' 
                         + ' pass varchar(100) not null,' 
                         + ' email varchar(60) unique not null,' 
                         + ' verified tinyint(1) default null);')
 
 user_db.executescript('create table secondfactor ' 
-                        + '(id int(11) primary key not null,' 
+                        + '(id integer primary key,' 
                         + ' email varchar(60) not null,' 
                         + ' code char(41) not null);')                        
 
@@ -115,7 +115,7 @@ message_db = sqlcipher.connect(db_messages)
 print("messages key: " + message_db_key.decode('utf-8')) # -- for debbuggin purposes only
 message_db.executescript("pragma key='" + message_db_key.decode('utf-8') + "'; pragma kdf_iter=64000;")
 message_db.executescript('create table messageboard ' 
-                        + '(id int(11) primary key not null,' 
+                        + '(id integer primary key,' 
                         + ' msg varchar(500) not null,' 
                         + ' title varchar(50) not null,' 
                         + ' source varchar(60) not null,' 

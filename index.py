@@ -67,7 +67,7 @@ def sendemail(email, code, name):
   message = message + LINK + "\n\n Thanks \n Team Cybersecurity Capstone"
   FROM = sender
 
-  to = receivers
+  to = email
   smtpserver = smtplib.SMTP("127.0.0.1",25)
   smtpserver.ehlo()
   smtpserver.ehlo() # extra characters to permit edit
@@ -97,7 +97,7 @@ def secondfactor(email):
   message = message + LINK + "\n\n Thanks \n Team Cybersecurity Capstone"
   FROM = sender
 
-  to = receivers
+  to = email
   smtpserver = smtplib.SMTP("127.0.0.1",25)
   smtpserver.ehlo()
   smtpserver.ehlo() # extra characters to permit edit
@@ -126,7 +126,7 @@ def SendLinkSetPassword(email, code):
   message = message + LINK + "\n\n Thanks \n Team Cybersecurity Capstone"
   FROM = sender
 
-  to = receivers
+  to = email
   smtpserver = smtplib.SMTP("127.0.0.1",25)
   smtpserver.ehlo()
   smtpserver.ehlo() # extra characters to permit edit
