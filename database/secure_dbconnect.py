@@ -1,3 +1,167 @@
 # -*- coding: utf-8 -*-
-from pysqlcipher3 import dbapi2 as sqlcipher
+#
+# This module will provide secure access to the databases
+#
 
+from pysqlcipher3 import dbapi2 as sqlcipher
+from Crypto.Cipher import AES
+
+
+###############################################################################
+#
+# Connections to the key_storage database 
+#
+###############################################################################
+
+def get_database_key(db_name):
+    path_to_master_key = ".key/master_db_key"
+    path_to_key_db = "key_storage.db"
+    fp = open(path_to_master_key, "r")
+    db_master_key = fp.readlines()[0][:-1]
+    
+    db = sqlcipher.connect(path_to_key_db)
+    db.executescript('pragma key="' + db_master_key 
+                        + '"; pragma kdf_iter=64000;')
+    cursor = db.cursor() 
+    name, nonce, tag, ciphertext = cursor.execute(
+        'select * from app_keys where name=?;', [db_name]).fetchone()
+    db.close()
+    cipher = AES.new(db_master_key.encode('utf-8'), AES.MODE_EAX, nonce)
+    db_key = cipher.decrypt_and_verify(ciphertext, tag)
+    return db_key.decode()
+    
+
+###############################################################################
+#
+# Connections to the users database 
+#
+###############################################################################
+## ----------------------- General Functions ------------------------------- ##
+## ------------------------------------------------------------------------- ##
+def users_run_db_statement(query, args):
+    users_key = get_database_key('users.db')
+    db = sqlcipher.connect('users.db')
+    db.executescript('pragma key="' + users_key + '"; pragma kdf_iter=64000;')
+    cursor = db.cursor()
+    users = cursor.execute(query, args).fetchall()
+    db.commit()
+    db.close()
+    return users
+
+## ----------------------- Insert Functions -------------------------------- ##
+## ------------------------------------------------------------------------- ##
+# Function to insert a new entry in the second factor table
+def users_insert_second_factor(email, code):
+    query = "insert into secondfactor (email, code) values (?, ?);"  
+    args = [email, code]
+    return users_run_db_statement(query, args)
+    
+ # Function to insert a new unverified user
+def users_insert_unverified_user(email, code):
+    query = "insert into unverified_user (email, code) values (?, ?);" 
+    args = [email, code]
+    return users_run_db_statement(query, args)   
+    
+# Function to insert a new user in the database
+def users_insert_new_user(fullname, password, email):
+    query = "insert into users (fullname, pass, email) values (?, ?, ?);"  
+    args = [fullname, password, email]
+    return users_run_db_statement(query, args)
+
+## -----------------------  Query Functions -------------------------------- ##
+## ------------------------------------------------------------------------- ##
+# Function to check if a user is registered in the database
+def users_check_exist(email):
+    query = "select email from users where email=? limit 1;"
+    args = [email]
+    return users_run_db_statement(query, args)
+
+# Function to check if a second factor code is stored in the database
+def users_check_second_factor(code, email):
+    query = "select email, code from secondfactor where code = ? and email = ? limit 1;"
+    args = [code, email]
+    return users_run_db_statement(query, args)
+    
+# Function to check if a code is stored in the unverified users table
+def users_check_unverified_user(code):
+    query = "select email, code from unverified_user where code = ? limit 1;"
+    args = [code]
+    return users_run_db_statement(query, args)
+    
+# Function to check the provided login information is correct
+def users_check_authentication(email, hash_value):
+    query = "select id from users where email=? and pass=? and verified=0 limit 1;"
+    args = [email, hash_value]
+    return users_run_db_statement(query, args)
+
+## ----------------------- Delete Functions -------------------------------- ##
+## ------------------------------------------------------------------------- ##
+# Function to remove a user from the second factor authentication
+def users_remove_second_factor(email):
+    query = "delete from secondfactor where email=?;"
+    args = [email]
+    return users_run_db_statement(query, args)
+
+# Function to remove a user from the unverified users table  
+def users_remove_unverified_user_by_email(email):
+    query = "delete from unverified_user where email=?;"    
+    args = [email]
+    return users_run_db_statement(query, args)
+
+# Function to remove a user from the unverified users table  
+def users_remove_unverified_user_by_code(code):
+    query = "delete from unverified_user where code=?;"    
+    args = [code]
+    return users_run_db_statement(query, args)
+
+## ----------------------- Update Functions -------------------------------- ##
+## ------------------------------------------------------------------------- ##
+# Function to update the value assigned to the verified status of a user
+def users_update_verified(email, verified):   
+    query = "update users set verified=? where email=?;"    
+    args = [email, verified]
+    return users_run_db_statement(query, args)
+    
+def users_update_password(code, password):
+    query = "update users t2, (select email from unverified_users where" \
+        + " code=? limit 1) t1 set pass=?, verified=0 where t2.email=t1.email;"
+    args = [code, password]
+    return users_run_db_statement(query, args)
+    
+    
+###############################################################################
+#
+# Connections to the messages database 
+#
+###############################################################################
+## ----------------------- General Functions ------------------------------- ##
+## ------------------------------------------------------------------------- ##
+# Function to generalize queries for the messages database and make key management
+# transparent for the application
+def messages_run_db_statement(query, args):
+    messages_key = get_database_key('messages.db')
+    db = sqlcipher.connect('messages.db')
+    db.executescript('pragma key="' + messages_key + '"; pragma kdf_iter=64000;')
+    cursor = db.cursor()
+    messages = cursor.execute(query, args).fetchall()
+    db.commit()
+    db.close()
+    return messages
+    
+
+## ----------------------- Insert Functions -------------------------------- ##
+## ------------------------------------------------------------------------- ##
+# Function to store a new message in the database
+def messages_store_new_message(msg, to, subject, origin):
+    query = "insert into messageboard (msg, destination, title, source) values (?, ?, ?, ?);"
+    args = [msg, to, subject, origin]
+    return messages_run_db_statement(query, args)  
+    
+    
+## ------------------------ Query Functions -------------------------------- ##
+## ------------------------------------------------------------------------- ##
+# Function to retrieve the messages addressed to a given user
+def messages_get_messages_to_user(email):
+    query = "select msg, title, source, destination from messageboard where destination=?;" 
+    args = [email]
+    return messages_run_db_statement(query, args)     
