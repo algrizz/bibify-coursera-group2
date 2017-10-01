@@ -14,21 +14,19 @@ from Crypto.Cipher import AES
 ###############################################################################
 
 def get_database_key(db_name):
-    path_to_master_key = ".key/master_db_key"
-    path_to_key_db = "key_storage.db"
+    path_to_master_key = "database/.key/master_db_key"
+    path_to_key_db = "database/key_storage.db"
     fp = open(path_to_master_key, "r")
     db_master_key = fp.readlines()[0][:-1]
     
     db = sqlcipher.connect(path_to_key_db)
-    db.executescript('pragma key="' + db_master_key 
-                        + '"; pragma kdf_iter=64000;')
+    db.executescript('pragma key="' + db_master_key + '";')
     cursor = db.cursor() 
     name, nonce, tag, ciphertext = cursor.execute(
         'select * from app_keys where name=?;', [db_name]).fetchone()
     db.close()
     cipher = AES.new(db_master_key.encode('utf-8'), AES.MODE_EAX, nonce)
     db_key = cipher.decrypt_and_verify(ciphertext, tag)
-    print ("debug info: getting key for database: " + db_name + "\n")
     return db_key.decode()
     
 
@@ -39,15 +37,14 @@ def get_database_key(db_name):
 ###############################################################################
 ## ----------------------- General Functions ------------------------------- ##
 ## ------------------------------------------------------------------------- ##
-def users_run_db_statement(query, args):
+def users_run_db_statement(query, args): 
     users_key = get_database_key('users.db')
-    db = sqlcipher.connect('users.db')
-    db.executescript('pragma key="' + users_key + '"; pragma kdf_iter=64000;')
+    db = sqlcipher.connect('database/users.db')
+    db.executescript('pragma key="' + users_key + '";')
     cursor = db.cursor()
     users = cursor.execute(query, args).fetchall()
     db.commit()
     db.close()
-    print ("debug info: database request for:\n" + query + "\n")
     return users
 
 ## ----------------------- Insert Functions -------------------------------- ##
@@ -142,8 +139,8 @@ def users_update_password(code, password):
 # transparent for the application
 def messages_run_db_statement(query, args):
     messages_key = get_database_key('messages.db')
-    db = sqlcipher.connect('messages.db')
-    db.executescript('pragma key="' + messages_key + '"; pragma kdf_iter=64000;')
+    db = sqlcipher.connect('database/messages.db')
+    db.executescript('pragma key="' + messages_key + '";')
     cursor = db.cursor()
     messages = cursor.execute(query, args).fetchall()
     db.commit()

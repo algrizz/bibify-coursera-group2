@@ -25,16 +25,17 @@ db_array = [db_keys, db_messages, db_users, db_sessions]
 
 # Delete existing databases and create them anew to start from a clean state
 for el in db_array:
-    path_to_db = "./" + el
+    path_to_db = "database/" + el
     os.system('rm -f ' + path_to_db)
     os.system('echo ".open ' + path_to_db + ' .quit" | sqlcipher')
 
-path_to_master_key = "./.key/master_db_key"
+path_to_master_key = "database/.key/master_db_key"
 fp = open(path_to_master_key, "r")
 db_master_key = fp.readlines()[0][:-1]
 
 # Create the database to store the keys to the other databases
-db = sqlcipher.connect(db_keys)
+path_to_db_keys = "database/" + db_keys
+db = sqlcipher.connect(path_to_db_keys)
 db.executescript('pragma key="' + db_master_key + '"; pragma kdf_iter=64000;')
 db.executescript('create table app_keys ' 
                 + '(name text primary key,' 
@@ -73,28 +74,29 @@ cipher = AES.new(db_master_key.encode('utf-8'), AES.MODE_EAX, nonce)
 user_db_key = cipher.decrypt_and_verify(ciphertext, tag)
 
 # Open users database and create associated tables
-user_db = sqlcipher.connect(db_users)
+user_db = sqlcipher.connect("database/" + db_users)
 
 print("users key: " + user_db_key.decode('utf-8')) # -- for debbuggin purposes only
 user_db.executescript("pragma key='" + user_db_key.decode('utf-8') + "'; pragma kdf_iter=64000;")
 user_db.executescript('create table unverified_user ' 
                         + '(id integer primary key,' 
                         + ' email varchar(60) not null,' 
-                        + ' code char(41) not null);')
+                        + ' code varchar(40) not null);')
+
+user_db.executescript('create table secondfactor ' 
+                        + '(id integer primary key,' 
+                        + ' email varchar(60) not null,' 
+                        + ' code varchar(40) not null);')  
                         
 user_db.executescript('create table users ' 
                         + '(id integer primary key,' 
                         + ' fullname varchar(60) not null,' 
                         + ' pass varchar(100) not null,' 
-                        + ' email varchar(60) unique not null,' 
-                        + ' verified tinyint(1) default null);')
+                        + ' email varchar(40) unique not null,' 
+                        + ' verified tinyint(1) default null);')                      
 
-user_db.executescript('create table secondfactor ' 
-                        + '(id integer primary key,' 
-                        + ' email varchar(60) not null,' 
-                        + ' code char(41) not null);')                        
-
-# We haven't introduced any user, so no need to commit, just close
+# We commit, and just close
+user_db.commit()
 user_db.close()
 
 ###############################################################################
@@ -110,7 +112,7 @@ cipher = AES.new(db_master_key.encode('utf-8'), AES.MODE_EAX, nonce)
 message_db_key = cipher.decrypt_and_verify(ciphertext, tag)
 
 # Open messages database and create associated tables
-message_db = sqlcipher.connect(db_messages)
+message_db = sqlcipher.connect("database/" + db_messages)
 
 print("messages key: " + message_db_key.decode('utf-8')) # -- for debbuggin purposes only
 message_db.executescript("pragma key='" + message_db_key.decode('utf-8') + "'; pragma kdf_iter=64000;")
@@ -121,7 +123,8 @@ message_db.executescript('create table messageboard '
                         + ' source varchar(60) not null,' 
                         + ' destination varchar(60) not null);')
 
-# We haven't introduced any message, so no need to commit, just close
+# We commit, and just close
+message_db.commit()
 message_db.close()
 
 # Disconnect from the db

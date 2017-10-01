@@ -35,6 +35,7 @@ def handle_error(e):
 
 @app.route('/dbdump') #decorator
 def dbdump():
+    # TODO: Update dbdump to use the new database
     try:
         hostname='localhost'
         mysql_user='root'
@@ -133,7 +134,7 @@ def secondfactor(email):
   msg = header + message
   smtpserver.sendmail(FROM, to, msg)
   smtpserver.quit()
-  database.users_insert_second_factor(email, CODE)
+  rows = database.users_insert_second_factor(email, CODE)
 
 def SendLinkSetPassword(email, code):
   #In this function we send a new link to set a new password
@@ -173,8 +174,8 @@ def PasswordRecovery(EMAIL):
   CODE=GENERATERANDOMSTRING() # CODE is used as validator for registration and password recovery
   SendLinkSetPassword(EMAIL, CODE)  #We will send a link to the user in order to set a new password
   
-  database.users_update_verified(EMAIL, 1)
-  database.users_insert_unverified_user(EMAIL, CODE)
+  rows = database.users_update_verified(EMAIL, 1)
+  rows = database.users_insert_unverified_user(EMAIL, CODE)
   return 0 #if the function reaches this point everything went well
   
 @app.route('/lostpassword',methods=['GET','POST']) #decorator
@@ -245,7 +246,7 @@ def sendnewmessage():
     print (SUBJECT)
 
     if form.validate(): #builtin Flask validation
-       database.messages_store_new_message(MSG, TO, SUBJECT, username)   
+       rows = database.messages_store_new_message(MSG, TO, SUBJECT, username)   
        flash('Message Send!! ' + MSG)
     else:
        flash('Error: There was an error processing your form. Are you logged in? ')
@@ -329,8 +330,8 @@ def setnewpassword(CODE):
               password=str(password) + SALT
               password2=hashlib.sha384()
               password2.update(password.encode('UTF-8'))
-              database.users_update_password(str(CODE), str(password2))
-              database.users_remove_unverified_user_by_code(CODE)
+              rows = database.users_update_password(str(CODE), str(password2))
+              rows = database.users_remove_unverified_user_by_code(CODE)
               flash('Your password has been updated: ' )
         else:
             flash('Error: There was an error processing your form. Are you sure you are registered?. ')
@@ -401,11 +402,11 @@ def verify(CODE):
       return render_template('user.html', form=form)
 
     EMAIL = rows[0][0] #rows[0][0] corresponds to email of the first rs
-    database.users_update_verified(EMAIL, 0)
+    rows = database.users_update_verified(EMAIL, 0)
     #print (rows, 'EMAIL: ', rows[0][0])
     #flash('Good: ' + rows[0][0])
     flash ('Good news, your user is now confirmed')
-    database.users_remove_unverified_user_by_email(EMAIL)
+    rows = database.users_remove_unverified_user_by_email(EMAIL)
 
     return render_template('user.html', form=form)
 
@@ -431,7 +432,7 @@ def verify2(CODE):
 
         flash ('You are now logged in')
 
-        database.users_remove_second_factor(username)
+        rows = database.users_remove_second_factor(username)
         session['secondauth']=True
 
         return redirect(url_for('messageboard'))
@@ -480,10 +481,9 @@ def SaveRegistrationInDB(name, password, email, CODE):
     h = hashlib.new('sha384')
     h.update(password.encode('UTF-8'))
     myhash = h.hexdigest()
-    
-    database.users_insert_new_user(name, str(myhash),email)
-    database.users_insert_unverified_user(email,str(CODE))
-    
+    rows = database.users_insert_new_user(name, str(myhash), email)
+    rows = database.users_insert_unverified_user(email, str(CODE))
+    return
 
 @app.route('/coursera') #decorator
 def coursera():
@@ -502,5 +502,4 @@ def ReadDctFile():
 
 if __name__ == '__main__':
   ReadDctFile()
-  print (arraypwds)
   app.run(port=PORT,host='0.0.0.0') #Executing the server
