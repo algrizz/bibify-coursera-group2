@@ -12,12 +12,14 @@ from flask import Flask, abort, jsonify
 from flask import Flask, render_template, flash, request, session, redirect, url_for
 from wtforms import Form, TextField, TextAreaField, validators, StringField, SubmitField
 from miforms import *  #In the file miforms.py are all the forms
+import secure_dbconnect as database
 
 #It´s recommended to usea server with a webserver in the frontend. Running directly for simplicity
 PORT = 8000 #Port in which our APP will run
 SALT = 'COURsera.1234' #We are using the Salt technique. Variable used append to the password
 
 app = Flask(__name__,static_url_path='', static_folder='web/static' ) #new object
+# TODO: Move this key to the key storage database
 app.config['SECRET_KEY'] = '7d441f27d441f27567d441f2b6176a' #security to handle the form. Mandatory
 
 @app.errorhandler(404)
@@ -42,7 +44,7 @@ def BasicSanityCheckString(WHAT, VALUE):
   pass
 
 def GENERATERANDOMSTRING():
-  #The objetivo of this function is to return a random string. Used for registering and password recovery
+  #The goal of this function is to return a random string. Used for registering and password recovery
   import uuid
   return str(uuid.uuid4())
 
@@ -65,7 +67,7 @@ def sendemail(email, code, name):
   message = message + LINK + "\n\n Thanks \n Team Cybersecurity Capstone"
   FROM = sender
 
-  to = email
+  to = receivers
   smtpserver = smtplib.SMTP("127.0.0.1",25)
   smtpserver.ehlo()
   smtpserver.ehlo() # extra characters to permit edit
@@ -95,7 +97,7 @@ def secondfactor(email):
   message = message + LINK + "\n\n Thanks \n Team Cybersecurity Capstone"
   FROM = sender
 
-  to = email
+  to = receivers
   smtpserver = smtplib.SMTP("127.0.0.1",25)
   smtpserver.ehlo()
   smtpserver.ehlo() # extra characters to permit edit
@@ -103,10 +105,7 @@ def secondfactor(email):
   msg = header + message
   smtpserver.sendmail(FROM, to, msg)
   smtpserver.quit()
-
-  QUERY=("INSERT into SECONDFACTOR (`EMAIL`,`CODE`) values (%s,%s)")
-  ARGS=(email,CODE)
-  rows=QueryDB(QUERY,ARGS)
+  database.users_insert_second_factor(email, CODE)
 
 def SendLinkSetPassword(email, code):
   #In this function we send a new link to set a new password
@@ -127,7 +126,7 @@ def SendLinkSetPassword(email, code):
   message = message + LINK + "\n\n Thanks \n Team Cybersecurity Capstone"
   FROM = sender
 
-  to = email
+  to = receivers
   smtpserver = smtplib.SMTP("127.0.0.1",25)
   smtpserver.ehlo()
   smtpserver.ehlo() # extra characters to permit edit
@@ -139,19 +138,15 @@ def SendLinkSetPassword(email, code):
 def PasswordRecovery(EMAIL):
   #returns 0 if positive
   RETURNVALUE=1
-  QUERY="SELECT EMAIL FROM USERS WHERE EMAIL = %s LIMIT 1"
-  rows=QueryDB(QUERY,EMAIL)
+  rows = database.users_check_exist(EMAIL)
   if len(rows) == 0:  #In case the CODE was not found
      flash ('Error: Can not continue, email not found') #uncomment for debugging
-     return 1
+     return RETURNVALUE
   CODE=GENERATERANDOMSTRING() # CODE is used as validator for registration and password recovery
   SendLinkSetPassword(EMAIL, CODE)  #We will send a link to the user in order to set a new password
-
-  QUERY="UPDATE USERS SET VERIFIED = 1 WHERE EMAIL = %s "
-  rows=QueryDB(QUERY,EMAIL)
-  QUERY=("INSERT into UNVERIFIED_USER (`EMAIL`,`CODE`) values (%s,%s)")
-  ARGS=(EMAIL,CODE)
-  rows=QueryDB(QUERY,ARGS)
+  
+  database.users_update_verified(EMAIL, 1)
+  database.users_insert_unverified_user(EMAIL, CODE)
   return 0 #if the function reaches this point everything went well
   
 @app.route('/lostpassword',methods=['GET','POST']) #decorator
@@ -190,8 +185,7 @@ def messageboard():
     #flash ('Success: Your inbox is')
     #readinbox(username)
     #QUERY="SELECT * FROM USERSDE = %s "
-    QUERY="SELECT MSG, TITLE, SOURCE, DESTINATION FROM MESSAGEBOARD WHERE DESTINATION = %s "
-    rows=QueryDB(QUERY,str(username))
+    rows = database.messages_get_messages_to_user(str(username))
     if rows is not None:
       print ('Rows is not None')
       for row in rows:
@@ -215,20 +209,18 @@ def sendnewmessage():
     flash ('Success: Lets create a new message')
 
   if request.method == 'POST':
-        MSG=str(request.form['MSG'])
-        TO=str(request.form['TO'])
-        SUBJECT=str(request.form['SUBJECT'])
-        print (MSG)
-        print (TO)
-        print (SUBJECT)
+    MSG=str(request.form['MSG'])
+    TO=str(request.form['TO'])
+    SUBJECT=str(request.form['SUBJECT'])
+    print (MSG)
+    print (TO)
+    print (SUBJECT)
 
-        if form.validate(): #builtin Flask validation
-              QUERY=("INSERT into MESSAGEBOARD (`MSG`,`DESTINATION`,`TITLE`,`SOURCE`) values (%s,%s,%s,%s)")
-              ARGS=(MSG,TO,SUBJECT,username)
-              rows=QueryDB(QUERY,ARGS)
-              flash('Message Send!! ' + MSG)
-        else:
-            flash('Error: There was an error processing your form. Are you logged in? ')
+    if form.validate(): #builtin Flask validation
+       database.messages_store_new_message(MSG, TO, SUBJECT, username)   
+       flash('Message Send!! ' + MSG)
+    else:
+       flash('Error: There was an error processing your form. Are you logged in? ')
 
   return render_template('sendnewmessage.html', form = form, login=username)
 
@@ -246,7 +238,8 @@ def login():
     username = isloggedin()
     if username is not 1:
         print ('Username: ',username)
-        flash ('Error: You can not use the login option. You are already logged in as: ' + username + ' you can logout using the link in the upper bar')
+        flash ('Error: You can not use the login option. You are already logged in as: ' 
+                + username + ' you can logout using the link in the upper bar')
         return redirect(url_for('messageboard'))
 
     print (form.errors)
@@ -286,9 +279,7 @@ def AuthUser(username,password):
   h.update(password.encode('UTF-8'))
   myhash = h.hexdigest()
   print ('password:',str(myhash))
-  QUERY="SELECT ID FROM USERS WHERE EMAIL = %s and PASS = %s and VERIFIED=0 LIMIT 1"
-  ARGS=(username, str(myhash))
-  rows=QueryDB(QUERY,ARGS)
+  rows = database.users_check_authentication(username, str(myhash))
   if len(rows) == 0:  #In case no registries were return from the DB
       flash ('Error: Can not continue. Combination of username/pass does not match')
       return False
@@ -310,12 +301,8 @@ def setnewpassword(CODE):
               password=str(password) + SALT
               password2=hashlib.sha384()
               password2.update(password.encode('UTF-8'))
-              QUERY="UPDATE USERS T2, (SELECT EMAIL FROM UNVERIFIED_USER WHERE CODE = %s LIMIT 1) T1 SET PASS = %s, VERIFIED=0 WHERE T2.EMAIL = T1.EMAIL "
-              ARGS=(str(CODE), str(password2))
-              rows=QueryDB(QUERY,ARGS)
-              QUERY="DELETE FROM UNVERIFIED_USER WHERE CODE = %s "
-              rows=QueryDB(QUERY,CODE)
-
+              database.users_update_password(str(CODE), str(password2))
+              database.users_remove_unverified_user_by_code(CODE)
               flash('Your password has been updated: ' )
         else:
             flash('Error: There was an error processing your form. Are you sure you are registered?. ')
@@ -380,21 +367,17 @@ def verify(CODE):
     #flash('Good: ' + CODE)
     #return render_template('user.html', form=form)
     #QUERY="SELECT EMAIL, CODE FROM UNVERIFIED_USER WHERE CODE = %s", (str(CODE))
-    QUERY="SELECT EMAIL, CODE FROM UNVERIFIED_USER WHERE CODE = %s LIMIT 1"
-    rows=QueryDB(QUERY,CODE)
+    rows = database.users_check_unverified_user(CODE)
     if len(rows) == 0:  #In case the CODE was not found
       flash ('Can not continue, confirmation code not found. It might have been already confirmed')
       return render_template('user.html', form=form)
 
-    QUERY="UPDATE USERS SET VERIFIED = 0 WHERE EMAIL = %s "
     EMAIL = rows[0][0] #rows[0][0] corresponds to email of the first rs
-    rows=QueryDB(QUERY,EMAIL) 
+    database.users_update_verified(EMAIL, 0)
     #print (rows, 'EMAIL: ', rows[0][0])
     #flash('Good: ' + rows[0][0])
     flash ('Good news, your user is now confirmed')
-
-    QUERY="DELETE FROM UNVERIFIED_USER WHERE EMAIL = %s " #This user is not longer needed in UNVERIFIED table
-    rows=QueryDB(QUERY,EMAIL) 
+    database.users_remove_unverified_user_by_email(EMAIL)
 
     return render_template('user.html', form=form)
 
@@ -402,49 +385,32 @@ def verify(CODE):
 def verify2(CODE):
 
     if (BasicSanityCheckString('CODE', CODE)) is not True:  #Let's check the CODE recevied in the URL
-      flash ('Error: Code not found, cookie not found. Something wrong. Please try to logout and then login again')
-      return render_template('404.html')
+        flash ('Error: Code not found, cookie not found. Something wrong. Please try to logout and then login again')
+        return render_template('404.html')
 
     if 'username' in session:
-       username=session['username']
-       print ('Your user is: ',session['username']) #in this stage this cookie should be in the browser
-       form = ReusableForm(request.form)
-       CODE=str(CODE)
-       #flash('Good: ' + CODE)
-       #return render_template('user.html', form=form)
-       #QUERY="SELECT EMAIL, CODE FROM UNVERIFIED_USER WHERE CODE = %s", (str(CODE))
-       QUERY="SELECT EMAIL, CODE FROM SECONDFACTOR WHERE CODE = %s AND EMAIL = %s LIMIT 1"
-       ARGS=(CODE,username)
-       rows=QueryDB(QUERY,ARGS)
-       if len(rows) == 0:  #In case the CODE was not found
-        flash ('Can not continue, confirmation code not found. It might have been already confirmed')
-        return render_template('user.html', form=form)
+        username=session['username']
+        print ('Your user is: ',session['username']) #in this stage this cookie should be in the browser
+        form = ReusableForm(request.form)
+        CODE=str(CODE)
+        #flash('Good: ' + CODE)
+        #return render_template('user.html', form=form)
+        #QUERY="SELECT EMAIL, CODE FROM UNVERIFIED_USER WHERE CODE = %s", (str(CODE))
+        rows = database.users_check_second_factor(CODE,username)
+        if len(rows) == 0:  #In case the CODE was not found
+            flash ('Can not continue, confirmation code not found. It might have been already confirmed')
+            return render_template('user.html', form=form)
 
         flash ('You are now logged in')
 
-       QUERY="DELETE FROM SECONDFACTOR WHERE EMAIL = %s " #This user is not longer needed in SECONDFACTOR table
-       rows=QueryDB(QUERY,username)
-       session['secondauth']=True
+        database.users_remove_second_factor(username)
+        session['secondauth']=True
 
-       return redirect(url_for('messageboard'))
+        return redirect(url_for('messageboard'))
     else:
-      flash ('Error: Code not found, cookie not found. Something wrong. Please try to logout and then login again')
-      return render_template('404.html')
+        flash ('Error: Code not found, cookie not found. Something wrong. Please try to logout and then login again')
+        return render_template('404.html')
 
-
-def QueryDB(QUERY, DATA):
-  #Receive a SQL Query returns a record set
-  print (QUERY)
-  import dbconnect
-  conn = dbconnect.dbconnect()
-  conn.autocommit(True)
-  cur = conn.cursor()
-  cur.execute(QUERY, DATA)
-  rows = cur.fetchall()
-  if rows is not None:
-    return rows
-  else:
-    return "Error"
 
 @app.route('/registry',methods=['GET','POST']) #decorator
 def registy():
@@ -469,7 +435,7 @@ def registy():
             CODE=GENERATERANDOMSTRING() # CODE is used as validator for registration and password recovery
             SaveRegistrationInDB(name, password, email, CODE) #Only store in DB if passes validation
             sendemail(email, CODE, name)
-            flash('Thanks for registration ' + name + 'an email was sent in order to confirm your registration. Please check your spam folder')
+            flash('Thanks for registering, ' + name + '. An email was sent in order to confirm your registration. Please check your spam folder')
         else:
             flash('Error: There was an error processing your form. Please check the data. ')
 
@@ -477,25 +443,19 @@ def registy():
     return render_template('user.html', form=form)
 
 def SaveRegistrationInDB(name, password, email, CODE):
-  #The objetive of the function is to store registration data of the user in DB
-  import hashlib #The password is store in DB in hash sha224
-  import dbconnect
-  conn = dbconnect.dbconnect()
-  conn.autocommit(True)
-  cur = conn.cursor()
-  name=str(name)
-  #password=str(password)
-  password=str(password) + SALT
-  email=str(email)
+    #The objetive of the function is to store registration data of the user in DB
+    import hashlib #The password is store in DB in hash sha224
+    name=str(name)
+    password=str(password) + SALT
+    email=str(email)
 
-  h = hashlib.new('sha384')
-  h.update(password.encode('UTF-8'))
-  myhash = h.hexdigest()
-
-  cur.execute("INSERT into USERS (`FULLNAME`,`PASS`,`EMAIL`) values (%s,%s,%s)", (name, str(myhash),email))
-  cur.execute("INSERT into UNVERIFIED_USER (`EMAIL`,`CODE`) values (%s,%s)", (email,str(CODE)))
-
-  return
+    h = hashlib.new('sha384')
+    h.update(password.encode('UTF-8'))
+    myhash = h.hexdigest()
+    
+    database.users_insert_new_user(name, str(myhash),email)
+    database.users_insert_unverified_user(email,str(CODE))
+    
 
 @app.route('/coursera') #decorator
 def coursera():
