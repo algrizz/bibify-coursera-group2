@@ -6,6 +6,8 @@
 from pysqlcipher3 import dbapi2 as sqlcipher
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA384
+from Crypto.Random import get_random_bytes
+import binascii
 
 
 ###############################################################################
@@ -64,8 +66,9 @@ def users_insert_unverified_user(email, code):
     
 # Function to insert a new user in the database
 def users_insert_new_user(fullname, password, email):
-    query = "insert into users (fullname, pass, email) values (?, ?, ?);"  
-    args = [fullname, password, email]
+    query = "insert into users (fullname, salt, pass, email) values (?, ?, ?, ?);"  
+    salt, new_pass = password_create_new(password)
+    args = [fullname, salt, new_pass, email]
     return users_run_db_statement(query, args)
 
 ## -----------------------  Query Functions -------------------------------- ##
@@ -119,13 +122,17 @@ def users_remove_unverified_user_by_code(code):
 # Function to update the value assigned to the verified status of a user
 def users_update_verified(email, verified):   
     query = "update users set verified=? where email=?;"    
-    args = [email, verified]
+    args = [verified, email]
     return users_run_db_statement(query, args)
     
 def users_update_password(code, password):
-    query = "update users t2, (select email from unverified_users where" \
-        + " code=? limit 1) t1 set pass=?, verified=0 where t2.email=t1.email;"
-    args = [code, password]
+    query = "select email from unverified_user where code=? limit 1;"
+    args = [code]
+    rows = users_run_db_statement(query, args)
+    email = rows[0][0]
+    salt, new_pass = password_create_new(password)
+    query = "update users set salt=?, pass=?, verified=0 where email=?;"
+    args = [salt, new_pass, email]
     return users_run_db_statement(query, args)
     
     
@@ -174,43 +181,22 @@ def messages_get_messages_to_user(email):
 ###############################################################################
 # Function to generate the salt and hash the user's password
 def password_check_valid(username, password):
-    query = "select pass, salt from users where email=? and verified=0 limit 1;"
+    query = "select salt, pass from users where email=? and verified=0 limit 1;"
     args = [username]
-    stored_hash, salt = users_run_db_statement(query, args).fetchone()
+    rows = users_run_db_statement(query, args)
+    salt = rows[0][0]
+    stored_hash = rows[0][1]
     hasher = SHA384.new();
-    hasher.update(salt + password)
+    hasher.update((salt + password).encode('utf-8'))
     calc_hash = hasher.hexdigest()
     return (calc_hash == stored_hash)
     
+# Function to generate a salt and a hashed password
+def password_create_new(password):
+    # Create 32 characters salt to be hashed with the password and stored           
+    salt = binascii.hexlify(get_random_bytes(16)).decode('utf-8')
+    hasher = SHA384.new()      
+    hasher.update((salt + password).encode('utf-8'))
+    new_pass = hasher.hexdigest()
+    return salt, new_pass
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-

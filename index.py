@@ -67,7 +67,7 @@ def sendemail(email, code, name):
   receivers = str(email)
   CODE=str(code)
   LINK='http://coursera.acostasite.com:8000/verify/'+str(CODE)
-
+  print(LINK)
   message = """
 
   To confirm your registrion please 
@@ -97,7 +97,7 @@ def secondfactor(email):
   receivers = str(email)
   CODE=GENERATERANDOMSTRING() # CODE is used as validator for registration and password recovery
   LINK='http://coursera.acostasite.com:8000/verify2/'+str(CODE)
-
+  print(LINK)
   message = """
 
   To complete your login
@@ -126,7 +126,7 @@ def SendLinkSetPassword(email, code):
   receivers = str(email)
   CODE=str(code)
   LINK='http://coursera.acostasite.com:8000/setnewpassword/'+str(CODE)
-    
+  
   message = """
   NOTE: In case you did not request this email please ignore it.
 
@@ -164,10 +164,10 @@ def PasswordRecovery(EMAIL):
 def lostpassword():
     form = LostPasswordForm(request.form)
 
-    print (form.errors)
+    # print (form.errors)
     if request.method == 'POST':
         email=request.form['email']
-        print (email)
+        # print (email)
 
         if form.validate(): #builtin Flask validation
             if PasswordRecovery(email) == 0 : #in case email not found
@@ -223,9 +223,9 @@ def sendnewmessage():
     MSG=str(request.form['MSG'])
     TO=str(request.form['TO'])
     SUBJECT=str(request.form['SUBJECT'])
-    print (MSG)
-    print (TO)
-    print (SUBJECT)
+    # print (MSG)
+    # print (TO)
+    # print (SUBJECT)
 
     if form.validate(): #builtin Flask validation
        rows = database.messages_store_new_message(MSG, TO, SUBJECT, username)   
@@ -282,25 +282,14 @@ def login():
 def AuthUser(username,password):
   #This function received username and password
   #it returns True if user authenticated, False if not
-  import hashlib #The password is store in DB in hash sha384
-  username=str(username)
-  #password=str(password)
-  password=str(password) + SALT
-  h = hashlib.new('sha384')
-  h.update(password.encode('UTF-8'))
-  myhash = h.hexdigest()
-  print ('password:',str(myhash))
-  rows = database.users_check_authentication(username, str(myhash))
-  if len(rows) == 0:  #In case no registries were return from the DB
+  is_auth = database.password_check_valid(username, password)
+  if not is_auth:  #In case no registries were return from the DB
       flash ('Error: Can not continue. Combination of username/pass does not match')
-      return False
-  else:
-     return True
+  return is_auth
 
 @app.route('/setnewpassword/<CODE>/',methods=['GET','POST']) #decorator
 def setnewpassword(CODE):
     #In this function we set a new password for a user
-    import hashlib
     form = EnterNewPassword(request.form)
 
     print (form.errors)
@@ -309,10 +298,7 @@ def setnewpassword(CODE):
         print (password)
 
         if form.validate(): #builtin Flask validation
-              password=str(password) + SALT
-              password2=hashlib.sha384()
-              password2.update(password.encode('UTF-8'))
-              rows = database.users_update_password(str(CODE), str(password2))
+              rows = database.users_update_password(str(CODE), password)
               rows = database.users_remove_unverified_user_by_code(CODE)
               flash('Your password has been updated: ' )
         else:
@@ -444,7 +430,8 @@ def registy():
 
         if form.validate() and password==password2 and password not in arraypwds: #Flask internal validation and check if both password enter in the form match
             CODE=GENERATERANDOMSTRING() # CODE is used as validator for registration and password recovery
-            SaveRegistrationInDB(name, password, email, CODE) #Only store in DB if passes validation
+            rows = database.users_insert_new_user(name, password, email)
+            rows = database.users_insert_unverified_user(email, str(CODE))
             sendemail(email, CODE, name)
             flash('Thanks for registering, ' + name + '. An email was sent in order to confirm your registration. Please check your spam folder')
         else:
@@ -453,19 +440,6 @@ def registy():
 
     return render_template('user.html', form=form)
 
-def SaveRegistrationInDB(name, password, email, CODE):
-    #The objetive of the function is to store registration data of the user in DB
-    import hashlib #The password is store in DB in hash sha224
-    name=str(name)
-    password=str(password) + SALT
-    email=str(email)
-
-    h = hashlib.new('sha384')
-    h.update(password.encode('UTF-8'))
-    myhash = h.hexdigest()
-    rows = database.users_insert_new_user(name, str(myhash), email)
-    rows = database.users_insert_unverified_user(email, str(CODE))
-    return
 
 @app.route('/coursera') #decorator
 def coursera():

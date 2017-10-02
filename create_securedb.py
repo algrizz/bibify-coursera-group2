@@ -25,7 +25,7 @@ flask_key = "flask_key"
 db_array = [db_keys, db_messages, db_users, db_sessions, flask_key]
 
 # Delete existing databases and create them anew to start from a clean state
-for el in db_array:
+for el in db_array[:-1]:
     path_to_db = "database/" + el
     os.system('rm -f ' + path_to_db)
     os.system('echo ".open ' + path_to_db + ' .quit" | sqlcipher')
@@ -92,8 +92,9 @@ user_db.executescript('create table secondfactor '
 user_db.executescript('create table users ' 
                         + '(id integer primary key,' 
                         + ' fullname varchar(60) not null,' 
+                        + ' salt char(32) not null,' 
                         + ' pass varchar(100) not null,' 
-                        + ' email varchar(40) unique not null,' 
+                        + ' email varchar(60) unique not null,' 
                         + ' verified tinyint(1) default null);')                      
 
 # We commit, and just close
