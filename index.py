@@ -16,8 +16,6 @@ import secure_dbconnect as database
 
 #It´s recommended to usea server with a webserver in the frontend. Running directly for simplicity
 PORT = 8000 #Port in which our APP will run
-# TODO: Salt should be random and stored with the password hash so it can be checked against
-SALT = 'COURsera.1234' #We are using the Salt technique. Variable used append to the password
 
 arraypwds = [] #In this list we have a dictionary wordlist for well known easy password
 
