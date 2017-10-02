@@ -5,6 +5,7 @@
 
 from pysqlcipher3 import dbapi2 as sqlcipher
 from Crypto.Cipher import AES
+from Crypto.Hash import SHA384
 
 
 ###############################################################################
@@ -164,3 +165,52 @@ def messages_get_messages_to_user(email):
     query = "select msg, title, source, destination from messageboard where destination=?;" 
     args = [email]
     return messages_run_db_statement(query, args)     
+
+    
+###############################################################################
+#
+# Hash for the password management
+#
+###############################################################################
+# Function to generate the salt and hash the user's password
+def password_check_valid(username, password):
+    query = "select pass, salt from users where email=? and verified=0 limit 1;"
+    args = [username]
+    stored_hash, salt = users_run_db_statement(query, args).fetchone()
+    hasher = SHA384.new();
+    hasher.update(salt + password)
+    calc_hash = hasher.hexdigest()
+    return (calc_hash == stored_hash)
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -20,8 +20,9 @@ db_keys = "key_storage.db"
 db_messages = "messages.db"
 db_users = "users.db"
 db_sessions = "sessions.db"
+flask_key = "flask_key"
 
-db_array = [db_keys, db_messages, db_users, db_sessions]
+db_array = [db_keys, db_messages, db_users, db_sessions, flask_key]
 
 # Delete existing databases and create them anew to start from a clean state
 for el in db_array:

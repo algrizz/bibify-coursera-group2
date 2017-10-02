@@ -16,13 +16,13 @@ import secure_dbconnect as database
 
 #It´s recommended to usea server with a webserver in the frontend. Running directly for simplicity
 PORT = 8000 #Port in which our APP will run
+# TODO: Salt should be random and stored with the password hash so it can be checked against
 SALT = 'COURsera.1234' #We are using the Salt technique. Variable used append to the password
 
 arraypwds = [] #In this list we have a dictionary wordlist for well known easy password
 
 app = Flask(__name__,static_url_path='', static_folder='web/static' ) #new object
-# TODO: Move this key to the key storage database
-app.config['SECRET_KEY'] = '7d441f27d441f27567d441f2b6176a' #security to handle the form. Mandatory
+app.config['SECRET_KEY'] = database.get_database_key('flask_key') #security to handle the form. Mandatory
 
 @app.errorhandler(404)
 def page_not_found(a=''):
@@ -35,29 +35,11 @@ def handle_error(e):
 
 @app.route('/dbdump') #decorator
 def dbdump():
-    # TODO: Update dbdump to use the new database
-    try:
-        hostname='localhost'
-        mysql_user='root'
-        mysql_pw='rc.353'
-        import subprocess, time
-#        timestamp = str(int(time.time()))
-        comando="mysqldump -h" + hostname + " -u" + mysql_user + " -p'" + mysql_pw + "' COURSERA 2> /dev/null"
-        #p = subprocess.check_output( [comando], shell=True, encoding='utf-8')
-        p = subprocess.getoutput(comando)
-        
-        # Wait for completion
-        p.communicate()
-        # Check for errors
-        if(p.returncode != 0):
-            raise
-        print("Backup done for", hostname)
-        #p=str(p.decode('utf-8'))
-        return '%s' % (p.split())
-    except:
-        print("Backup failed for", hostname)
-        return '%s' % (p)
-
+    import subprocess
+    dump = subprocess.run(['hexdump', '-C', 'database/messages.db', 'database/users.db'],
+                          stdout=subprocess.PIPE)
+    print("Backup done for 'database/messages.db' and 'database/users.db'")
+    return dump.stdout.decode('utf-8')
 
 
 def BasicSanityCheckString(WHAT, VALUE):
