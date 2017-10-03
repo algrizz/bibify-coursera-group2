@@ -37,7 +37,7 @@ def dbdump():
     dump = subprocess.run(['hexdump', '-C', 'database/messages.db', 'database/users.db'],
                           stdout=subprocess.PIPE)
     print("Backup done for 'database/messages.db' and 'database/users.db'")
-    return dump.stdout.decode('utf-8')
+    return render_template('dbdump.html', data = dump.stdout.decode('utf-8').splitlines())
 
 
 def BasicSanityCheckString(WHAT, VALUE):
@@ -65,7 +65,7 @@ def sendemail(email, code, name):
   receivers = str(email)
   CODE=str(code)
   LINK='http://coursera.acostasite.com:8000/verify/'+str(CODE)
-  print(LINK)
+  
   message = """
 
   To confirm your registrion please 
@@ -95,7 +95,7 @@ def secondfactor(email):
   receivers = str(email)
   CODE=GENERATERANDOMSTRING() # CODE is used as validator for registration and password recovery
   LINK='http://coursera.acostasite.com:8000/verify2/'+str(CODE)
-  print(LINK)
+  
   message = """
 
   To complete your login

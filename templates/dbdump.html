@@ -117,6 +117,11 @@
   font-weight: 100;
   font-size: 42px;
 }
+
+code {
+  background-color: transparent;
+  color: #333333;
+}
 </style>
 <br>
 <div>
@@ -126,38 +131,26 @@
  
 <div class="container">
  
- 
-  <h2>Flask Web Form</h2>
-  <form  action="" method="post" role="form">
-    {{ form.csrf }}
-    <div class="form-group">
-      <label for="password">Password (min 8 chars, lowecase & capital letters):</label>
-      <input type="password" class="form-control" id="password" name="password" placeholder="Enter a password.">
- 
- 
+    <h2> This is the database dump utility page </h2>
+    <div>
+        <span>The database is completely encripted, so the output of the file is here
+            presented as an hexdump -C of the contents of the users.db and messages.db</br>
+            For illustrative purposes, the structure of the users and messages database is as
+            follows:
+        </span>
+        <h3>Users database</h3>
+        <span>Table Users: { id, fullname, salt, password, email, verified }</br></span>
+        <span>Table Unverified_user: { id, email, code }</br></span>
+        <span>Table Second_factor: { id, email, code }</br></span>
+        <h3>Messages database</h3>
+        <span>Table Messages: { id, msg, title, source, destination }</span>
     </div>
-    <button type="submit" class="btn btn-success">Update</button> <a href = "/lostpassword">Lost password?</a>
-  </form>
- 
-  <br>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
- 
-        {% for message in messages %}
-            {% if "Error" not in message[1]: %}
-                <div class="alert alert-info">
-                <strong>Success! </strong> {{ message[1] }}
-                </div>
-            {% endif %}
- 
-            {% if "Error" in message[1]: %}
-                <div class="alert alert-warning">
-                {{ message[1] }}
-                </div>
-            {% endif %}
+    <h2> Database Hexdump </h2>
+    <code id="database-dump">
+        {% for row in data %}             
+            <span>{{row}}</span></br>
         {% endfor %}
-            {% endif %}
-        {% endwith %}
+    </code>
  
 </div>
 <br>            
